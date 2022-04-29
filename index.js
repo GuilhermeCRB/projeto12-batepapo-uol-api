@@ -59,5 +59,29 @@ app.get("/participants", async (req,res) => {
     }
 });
 
+app.post("/messages", async (req,res) => {
+    const {body} = req;
+    const {headers} = req;
+    console.log(headers)
+    console.log("Post request to \"/messages\" received:", body);
+    try{
+        await mongoClient.connect();
+        const db = mongoClient.db("batepapo-uol");
+        const messagesCollection = db.collection("messages");
+        const now = dayjs();
+        const message = await messagesCollection.insertOne({
+            ...body,
+            from: headers.user,
+            time: now.format("HH:mm:ss")
+        });
+
+        res.status(201).send(message);
+        mongoClient.close();
+    }catch (error) {
+        res.status(500).send(error);
+        mongoClient.close();
+    }
+});
+
 const port = process.env.PORT;
 app.listen(port, () => console.log(chalk.white.bold.bgGreenBright(`\n Application is online, using port ${port}... \n`)));
