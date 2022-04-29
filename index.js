@@ -1,5 +1,6 @@
 import express, {json} from "express";
 import { MongoClient } from "mongodb";
+import dayjs from "dayjs";
 import cors from "cors";
 import dotenv from "dotenv";
 import chalk from "chalk";
@@ -22,6 +23,16 @@ app.post("/participants", async (req,res) => {
         const participant = await participantsCollection.insertOne({
             ...body,
             lastStatus: Date.now()
+        });
+
+        const messagesCollection = db.collection("messages");
+        const now = dayjs();
+        const message = await messagesCollection.insertOne({
+            from: 'xxx', 
+            to: 'Todos', 
+            text: 'entra na sala...', 
+            type: 'status', 
+            time: now.format("HH:mm:ss")
         });
 
         res.status(200).send(participant);
