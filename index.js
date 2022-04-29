@@ -35,7 +35,23 @@ app.post("/participants", async (req,res) => {
             time: now.format("HH:mm:ss")
         });
 
-        res.status(200).send(participant);
+        res.status(201).send(participant);
+        mongoClient.close();
+    }catch (error) {
+        res.status(500).send(error);
+        mongoClient.close();
+    }
+});
+
+app.get("/participants", async (req,res) => {
+    console.log("Get request to \"/participants\" received");
+    try{
+        await mongoClient.connect();
+        const db = mongoClient.db("batepapo-uol");
+        const participantsCollection = db.collection("participants");
+        const participantsList = await participantsCollection.find().toArray();
+
+        res.status(200).send(participantsList);
         mongoClient.close();
     }catch (error) {
         res.status(500).send(error);
