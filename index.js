@@ -83,5 +83,22 @@ app.post("/messages", async (req,res) => {
     }
 });
 
+app.get("/messages", async (req,res) => {
+    const {limit} = req.query;
+    console.log(`Get request to \"/messages/${limit}\" received`);
+    try{
+        await mongoClient.connect();
+        const db = mongoClient.db("batepapo-uol");
+        const messagesCollection = db.collection("messages");
+        const messagesList = await messagesCollection.find().limit(parseInt(limit)).sort({time: -1}).toArray();
+
+        res.status(200).send(messagesList.reverse());
+        mongoClient.close();
+    }catch (error) {
+        res.status(500).send(error);
+        mongoClient.close();
+    }
+});
+
 const port = process.env.PORT;
 app.listen(port, () => console.log(chalk.white.bold.bgGreenBright(`\n Application is online, using port ${port}... \n`)));
