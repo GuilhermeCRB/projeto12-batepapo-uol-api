@@ -35,6 +35,14 @@ app.post("/participants", async (req, res) => {
 
     try {
         const participantsCollection = db.collection("participants");
+
+        const thereIsParticipant = await participantsCollection.findOne({name: body.name});
+        if(thereIsParticipant){
+            res.status(409).send("Name is already in use! Please, try a different one.");
+            console.log(chalk.red.bold("\nError: user tried to use a name that already exists.\n"));
+            return;
+        }
+
         const participant = await participantsCollection.insertOne({
             ...body,
             lastStatus: Date.now()
