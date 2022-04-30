@@ -1,5 +1,6 @@
 import express, { json } from "express";
 import { MongoClient, ObjectId } from "mongodb";
+import joi from "joi";
 import dayjs from "dayjs";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -20,6 +21,18 @@ console.log(chalk.green.bold(`\nConnection with database ${chalk.blue.bold(`${db
 app.post("/participants", async (req, res) => {
     const { body } = req;
     console.log("\nPost request to \"/participants\" received:", body, "\n");
+
+    const participantsSchema = joi.object({
+        name: joi.string().required()
+    });
+
+    const validation = participantsSchema.validate(body);
+    if (validation.error) {
+        console.log(chalk.red.bold("\nError: "), validation.error.details, "\n");
+        res.status(422).send(validation.error.details);
+        return;
+    }
+
     try {
         const participantsCollection = db.collection("participants");
         const participant = await participantsCollection.insertOne({
@@ -124,8 +137,8 @@ function udateUsersStatus() {
             const now = dayjs();
             messagesCollection.insertOne({
                 from: removedParticipant.name,
-                to: 'Todos', 
-                text: 'sai da sala...', 
+                to: 'Todos',
+                text: 'sai da sala...',
                 type: 'status',
                 time: now.format("HH:mm:ss")
             });
