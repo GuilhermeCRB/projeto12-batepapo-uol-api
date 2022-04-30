@@ -3,6 +3,7 @@ import { MongoClient, ObjectId } from "mongodb";
 import joi from "joi";
 import dayjs from "dayjs";
 import cors from "cors";
+import { stripHtml } from "string-strip-html";
 import dotenv from "dotenv";
 import chalk from "chalk";
 
@@ -20,13 +21,16 @@ console.log(chalk.green.bold(`\nConnection with database ${chalk.blue.bold(`${db
 
 app.post("/participants", async (req, res) => {
     const { body } = req;
-    console.log("\nPost request to \"/participants\" received:", body, "\n");
+    const sanitizedBody = {...body, name: stripHtml(body.name).result}
+    
+    console.log("\nPost request to \"/participants\" received:", body);
+    console.log("Sanitized body request: ", sanitizedBody, "\n");
 
     const participantsSchema = joi.object({
         name: joi.string().required()
     });
 
-    const validation = participantsSchema.validate(body);
+    const validation = participantsSchema.validate(sanitizedBody);
     if (validation.error) {
         console.log(chalk.red.bold("\nError: "), validation.error.details, "\n");
         res.status(422).send(validation.error.details);
@@ -36,7 +40,7 @@ app.post("/participants", async (req, res) => {
     try {
         const participantsCollection = db.collection("participants");
 
-        const thereIsParticipant = await participantsCollection.findOne({ name: body.name });
+        const thereIsParticipant = await participantsCollection.findOne({ name: sanitizedBody.name });
         if (thereIsParticipant) {
             res.status(409).send("Name is already in use! Please, try a different one.");
             console.log(chalk.red.bold("\nError: user tried to use a name that already exists.\n"));
@@ -44,14 +48,14 @@ app.post("/participants", async (req, res) => {
         }
 
         const participant = await participantsCollection.insertOne({
-            ...body,
+            ...sanitizedBody,
             lastStatus: Date.now()
         });
 
         const messagesCollection = db.collection("messages");
         const now = dayjs();
         const message = await messagesCollection.insertOne({
-            from: body.name,
+            from: sanitizedBody.name,
             to: 'Todos',
             text: 'entra na sala...',
             type: 'status',
@@ -79,7 +83,15 @@ app.get("/participants", async (req, res) => {
 app.post("/messages", async (req, res) => {
     const { body } = req;
     const { headers } = req;
-    console.log("Post request to \"/messages\" received\nBody: ", req.body, "\nHeader: ", req.headers, "\n");
+    const sanitizedBody = {...body, 
+        to: stripHtml(body.to).result,
+        text: stripHtml(body.text).result,
+        type: stripHtml(body.type).result
+    };
+    const sanitizedHeaders = {...headers, user: stripHtml(headers.user).result};
+    
+    console.log("Post request to \"/messages\" received\nBody: ", req.body, "\nHeader: ", req.headers);
+    console.log("Sanitized body request: ", sanitizedBody, "\nSanitized headers request: ", sanitizedHeaders, "\n");
 
     const bodyMessagesSchema = joi.object({
         to: joi.string().required(),
@@ -87,7 +99,7 @@ app.post("/messages", async (req, res) => {
         type: joi.string().valid('message', 'private_message')
     })
 
-    const validation = bodyMessagesSchema.validate(body);
+    const validation = bodyMessagesSchema.validate(sanitizedBody);
     if (validation.error) {
         console.log(chalk.red.bold("\nError: "), validation.error.details, "\n");
         res.status(422).send(validation.error.details);
@@ -97,7 +109,7 @@ app.post("/messages", async (req, res) => {
     try {
         const participantsCollection = db.collection("participants");
         const participantsList = await participantsCollection.find().toArray();
-        const thereIsParticipant = participantsList.filter(participant => participant === headers.user);
+        const thereIsParticipant = participantsList.filter(participant => participant.name === sanitizedHeaders.user);
         if (thereIsParticipant.length === 0) {
             res.status(422).send("User doesn't exists or was disconnected. Please, try logging in again.");
             return;
@@ -106,8 +118,8 @@ app.post("/messages", async (req, res) => {
         const messagesCollection = db.collection("messages");
         const now = dayjs();
         const message = await messagesCollection.insertOne({
-            ...body,
-            from: headers.user,
+            ...sanitizedBody,
+            from: sanitizedHeaders.user,
             time: now.format("HH:mm:ss")
         });
 
@@ -120,13 +132,17 @@ app.post("/messages", async (req, res) => {
 app.get("/messages", async (req, res) => {
     const { limit } = req.query;
     const { headers } = req;
+    const sanitizedHeaders = {...headers, user: stripHtml(headers.user).result};
+
     console.log(`Get request to \"/messages/${limit}\" received.\nHeader: `, headers);
+    console.log("Sanitized headers request: ", sanitizedHeaders, "\n");
+
     try {
         const messagesCollection = db.collection("messages");
         const messagesList = await messagesCollection.find({
             $or: [
-                { from: headers.user },
-                { to: { $in: [headers.user, "Todos"] } }
+                { from: sanitizedHeaders.user },
+                { to: { $in: [sanitizedHeaders.user, "Todos"] } }
             ]
         }).limit(parseInt(limit)).sort({ time: -1 }).toArray();
 
@@ -138,12 +154,15 @@ app.get("/messages", async (req, res) => {
 
 app.post("/status", async (req, res) => {
     const { headers } = req;
+    const sanitizedHeaders = {...headers, user: stripHtml(headers.user).result};
+
     console.log("\nPost request to \"/status\" received:", headers, "\n");
+    console.log("Sanitized headers request: ", sanitizedHeaders, "\n");
 
     try {
         const participantsCollection = db.collection("participants");
 
-        const thereIsParticipant = await participantsCollection.findOne({ name: headers.user });
+        const thereIsParticipant = await participantsCollection.findOne({ name: sanitizedHeaders.user });
         if (!thereIsParticipant) {
             res.status(404).send("User doesn't exists or was disconnected. Please, try logging in again.");
             console.log(chalk.red.bold("\nError: could not update status of user that does not exist.\n"));
@@ -151,7 +170,7 @@ app.post("/status", async (req, res) => {
         }
 
         const participantUpdated = await participantsCollection.updateOne(
-            { name: headers.user },
+            { name: sanitizedHeaders.user },
             {
                 $set: {
                     lastStatus: new Date.now()
