@@ -36,8 +36,8 @@ app.post("/participants", async (req, res) => {
     try {
         const participantsCollection = db.collection("participants");
 
-        const thereIsParticipant = await participantsCollection.findOne({name: body.name});
-        if(thereIsParticipant){
+        const thereIsParticipant = await participantsCollection.findOne({ name: body.name });
+        if (thereIsParticipant) {
             res.status(409).send("Name is already in use! Please, try a different one.");
             console.log(chalk.red.bold("\nError: user tried to use a name that already exists.\n"));
             return;
@@ -81,20 +81,28 @@ app.post("/messages", async (req, res) => {
     const { headers } = req;
     console.log("Post request to \"/messages\" received\nBody: ", req.body, "\nHeader: ", req.headers, "\n");
 
-    const messagesSchema = joi.object({
+    const bodyMessagesSchema = joi.object({
         to: joi.string().required(),
         text: joi.string().required(),
         type: joi.string().valid('message', 'private_message')
     })
 
-    const validation = messagesSchema.validate(body);
-    if(validation.error){
+    const validation = bodyMessagesSchema.validate(body);
+    if (validation.error) {
         console.log(chalk.red.bold("\nError: "), validation.error.details, "\n");
         res.status(422).send(validation.error.details);
         return;
     }
 
     try {
+        const participantsCollection = db.collection("participants");
+        const participantsList = await participantsCollection.find().toArray();
+        const thereIsParticipant = participantsList.filter(participant => participant === headers.user);
+        if (thereIsParticipant.length === 0) {
+            res.status(422).send("User doesn't exists or was disconnected. Please, try logging in again.");
+            return;
+        }
+
         const messagesCollection = db.collection("messages");
         const now = dayjs();
         const message = await messagesCollection.insertOne({
@@ -111,10 +119,16 @@ app.post("/messages", async (req, res) => {
 
 app.get("/messages", async (req, res) => {
     const { limit } = req.query;
-    console.log(`Get request to \"/messages/${limit}\" received`);
+    const { headers } = req;
+    console.log(`Get request to \"/messages/${limit}\" received.\nHeader: `, headers);
     try {
         const messagesCollection = db.collection("messages");
-        const messagesList = await messagesCollection.find().limit(parseInt(limit)).sort({ time: -1 }).toArray();
+        const messagesList = await messagesCollection.find({
+            $or: [
+                { from: headers.user },
+                { to: { $in: [headers.user, "Todos"] } }
+            ]
+        }).limit(parseInt(limit)).sort({ time: -1 }).toArray();
 
         res.status(200).send(messagesList.reverse());
     } catch (error) {
