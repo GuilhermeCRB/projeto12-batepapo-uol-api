@@ -139,8 +139,17 @@ app.get("/messages", async (req, res) => {
 app.post("/status", async (req, res) => {
     const { headers } = req;
     console.log("\nPost request to \"/status\" received:", headers, "\n");
+
     try {
         const participantsCollection = db.collection("participants");
+
+        const thereIsParticipant = await participantsCollection.findOne({ name: headers.user });
+        if (!thereIsParticipant) {
+            res.status(404).send("User doesn't exists or was disconnected. Please, try logging in again.");
+            console.log(chalk.red.bold("\nError: could not update status of user that does not exist.\n"));
+            return;
+        }
+
         const participantUpdated = await participantsCollection.updateOne(
             { name: headers.user },
             {
@@ -149,6 +158,8 @@ app.post("/status", async (req, res) => {
                 }
             }
         );
+
+        // code stops here. Find out why later.
 
         res.status(200).send(participantUpdated);
     } catch (error) {
