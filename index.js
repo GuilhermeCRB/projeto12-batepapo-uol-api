@@ -79,7 +79,21 @@ app.get("/participants", async (req, res) => {
 app.post("/messages", async (req, res) => {
     const { body } = req;
     const { headers } = req;
-    console.log("Post request to \"/messages\" received:", req);
+    console.log("Post request to \"/messages\" received\nBody: ", req.body, "\nHeader: ", req.headers, "\n");
+
+    const messagesSchema = joi.object({
+        to: joi.string().required(),
+        text: joi.string().required(),
+        type: joi.string().valid('message', 'private_message')
+    })
+
+    const validation = messagesSchema.validate(body);
+    if(validation.error){
+        console.log(chalk.red.bold("\nError: "), validation.error.details, "\n");
+        res.status(422).send(validation.error.details);
+        return;
+    }
+
     try {
         const messagesCollection = db.collection("messages");
         const now = dayjs();
