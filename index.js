@@ -132,8 +132,8 @@ app.get("/messages", async (req, res) => {
     const { headers } = req;
     const sanitizedHeaders = { ...headers, user: stripHtml(headers.user).result };
 
-    console.log(`Get request to \"/messages/${limit}\" received.\nHeader: `, headers.name);
-    console.log("Sanitized headers request: ", sanitizedHeaders.name, "\n");
+    console.log(`Get request to \"/messages/${limit}\" received.\nHeader: `, headers.user);
+    console.log("Sanitized headers request: ", sanitizedHeaders.user, "\n");
 
     try {
         const messagesCollection = db.collection("messages");
@@ -162,13 +162,13 @@ app.delete("/messages/:ID_DA_MENSAGEM", async (req, res) => {
         const messagesCollection = db.collection("messages");
         const messageToDelete = await messagesCollection.findOne({ _id: new ObjectId(ID_DA_MENSAGEM) });
 
-        if(!messageToDelete){
+        if (!messageToDelete) {
             res.status(404).send("Message not found.");
             console.log(chalk.red.bold("\nError: could not find a message with the id sent by user.\n"));
             return;
         }
 
-        if(messageToDelete.from !== headers.user){
+        if (messageToDelete.from !== headers.user) {
             res.status(401).send("Message was not sent by user.");
             console.log(chalk.red.bold("\nError: user tryied to delete a message that was not sent by him.\n"));
             return;
@@ -186,11 +186,12 @@ app.post("/status", async (req, res) => {
     const { headers } = req;
     const sanitizedHeaders = { ...headers, user: stripHtml(headers.user).result };
 
-    console.log("\nPost request to \"/status\" received:", headers.user, "\n");
+    console.log("\nPost request to \"/status\" received:", headers.user);
     console.log("Sanitized headers request: ", sanitizedHeaders.user, "\n");
 
     try {
         const participantsCollection = db.collection("participants");
+        const now = Date.now();
 
         const thereIsParticipant = await participantsCollection.findOne({ name: sanitizedHeaders.user });
         if (!thereIsParticipant) {
@@ -203,12 +204,10 @@ app.post("/status", async (req, res) => {
             { name: sanitizedHeaders.user },
             {
                 $set: {
-                    lastStatus: new Date.now()
+                    lastStatus: now
                 }
             }
         );
-
-        // FIXME: code stops here. Find out why later.
 
         res.status(200).send(participantUpdated);
     } catch (error) {
@@ -218,14 +217,13 @@ app.post("/status", async (req, res) => {
 
 setInterval(udateUsersStatus, 15000);
 
-function udateUsersStatus() {
+async function udateUsersStatus() {
     const now = Date.now();
 
     const messagesCollection = db.collection("messages");
     const participantsCollection = db.collection("participants");
-    const promise = participantsCollection.find({ lastStatus: { $lt: now - 10000 } }).toArray();
-
-    promise.then((removedParticipants) => {
+    try {
+        const removedParticipants = await participantsCollection.find({ lastStatus: { $lt: now - 10000 } }).toArray();
         removedParticipants.forEach((removedParticipant) => {
             const id = removedParticipant._id;
 
@@ -241,7 +239,9 @@ function udateUsersStatus() {
         });
 
         console.log("\nRemoved paticipants: ", removedParticipants, "\n")
-    });
+    }catch(error){
+        res.status(500).send(error);
+    };
 }
 
 const port = process.env.PORT;
