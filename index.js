@@ -23,8 +23,8 @@ app.post("/participants", async (req, res) => {
     const { body } = req;
     const sanitizedBody = { ...body, name: stripHtml(body.name).result }
 
-    console.log("\nPost request to \"/participants\" received:", body);
-    console.log("Sanitized body request: ", sanitizedBody, "\n");
+    console.log("\nPost request to \"/participants\" received:", body.name);
+    console.log("Sanitized body request: ", sanitizedBody.name, "\n");
 
     const participantsSchema = joi.object({
         name: joi.string().required()
@@ -91,9 +91,6 @@ app.post("/messages", async (req, res) => {
     };
     const sanitizedHeaders = { ...headers, user: stripHtml(headers.user).result };
 
-    console.log("Post request to \"/messages\" received\nBody: ", req.body, "\nHeader: ", req.headers);
-    console.log("Sanitized body request: ", sanitizedBody, "\nSanitized headers request: ", sanitizedHeaders, "\n");
-
     const bodyMessagesSchema = joi.object({
         to: joi.string().required(),
         text: joi.string().required(),
@@ -135,8 +132,8 @@ app.get("/messages", async (req, res) => {
     const { headers } = req;
     const sanitizedHeaders = { ...headers, user: stripHtml(headers.user).result };
 
-    console.log(`Get request to \"/messages/${limit}\" received.\nHeader: `, headers);
-    console.log("Sanitized headers request: ", sanitizedHeaders, "\n");
+    console.log(`Get request to \"/messages/${limit}\" received.\nHeader: `, headers.name);
+    console.log("Sanitized headers request: ", sanitizedHeaders.name, "\n");
 
     try {
         const messagesCollection = db.collection("messages");
@@ -158,8 +155,8 @@ app.delete("/messages/:ID_DA_MENSAGEM", async (req, res) => {
     const { headers } = req;
     const sanitizedHeaders = { ...headers, user: stripHtml(headers.user).result };
 
-    console.log(`Get request to \"/messages/${ID_DA_MENSAGEM}\" received.\nHeader: `, headers);
-    console.log("Sanitized headers request: ", sanitizedHeaders, "\n");
+    console.log(`Get request to \"/messages/${ID_DA_MENSAGEM}\" received.\nHeader: `, headers.user);
+    console.log("Sanitized headers request: ", sanitizedHeaders.user, "\n");
 
     try {
         const messagesCollection = db.collection("messages");
@@ -189,8 +186,8 @@ app.post("/status", async (req, res) => {
     const { headers } = req;
     const sanitizedHeaders = { ...headers, user: stripHtml(headers.user).result };
 
-    console.log("\nPost request to \"/status\" received:", headers, "\n");
-    console.log("Sanitized headers request: ", sanitizedHeaders, "\n");
+    console.log("\nPost request to \"/status\" received:", headers.user, "\n");
+    console.log("Sanitized headers request: ", sanitizedHeaders.user, "\n");
 
     try {
         const participantsCollection = db.collection("participants");
