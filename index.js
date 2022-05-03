@@ -21,8 +21,8 @@ console.log(chalk.green.bold(`\nConnection with database ${chalk.blue.bold(`${db
 
 app.post("/participants", async (req, res) => {
     const { body } = req;
-    const sanitizedBody = {...body, name: stripHtml(body.name).result}
-    
+    const sanitizedBody = { ...body, name: stripHtml(body.name).result }
+
     console.log("\nPost request to \"/participants\" received:", body);
     console.log("Sanitized body request: ", sanitizedBody, "\n");
 
@@ -83,13 +83,14 @@ app.get("/participants", async (req, res) => {
 app.post("/messages", async (req, res) => {
     const { body } = req;
     const { headers } = req;
-    const sanitizedBody = {...body, 
+    const sanitizedBody = {
+        ...body,
         to: stripHtml(body.to).result,
         text: stripHtml(body.text).result,
         type: stripHtml(body.type).result
     };
-    const sanitizedHeaders = {...headers, user: stripHtml(headers.user).result};
-    
+    const sanitizedHeaders = { ...headers, user: stripHtml(headers.user).result };
+
     console.log("Post request to \"/messages\" received\nBody: ", req.body, "\nHeader: ", req.headers);
     console.log("Sanitized body request: ", sanitizedBody, "\nSanitized headers request: ", sanitizedHeaders, "\n");
 
@@ -132,7 +133,7 @@ app.post("/messages", async (req, res) => {
 app.get("/messages", async (req, res) => {
     const { limit } = req.query;
     const { headers } = req;
-    const sanitizedHeaders = {...headers, user: stripHtml(headers.user).result};
+    const sanitizedHeaders = { ...headers, user: stripHtml(headers.user).result };
 
     console.log(`Get request to \"/messages/${limit}\" received.\nHeader: `, headers);
     console.log("Sanitized headers request: ", sanitizedHeaders, "\n");
@@ -152,9 +153,41 @@ app.get("/messages", async (req, res) => {
     }
 });
 
+app.delete("/messages/:ID_DA_MENSAGEM", async (req, res) => {
+    const { ID_DA_MENSAGEM } = req.params;
+    const { headers } = req;
+    const sanitizedHeaders = { ...headers, user: stripHtml(headers.user).result };
+
+    console.log(`Get request to \"/messages/${ID_DA_MENSAGEM}\" received.\nHeader: `, headers);
+    console.log("Sanitized headers request: ", sanitizedHeaders, "\n");
+
+    try {
+        const messagesCollection = db.collection("messages");
+        const messageToDelete = await messagesCollection.findOne({ _id: new ObjectId(ID_DA_MENSAGEM) });
+
+        if(!messageToDelete){
+            res.status(404).send("Message not found.");
+            console.log(chalk.red.bold("\nError: could not find a message with the id sent by user.\n"));
+            return;
+        }
+
+        if(messageToDelete.from !== headers.user){
+            res.status(401).send("Message was not sent by user.");
+            console.log(chalk.red.bold("\nError: user tryied to delete a message that was not sent by him.\n"));
+            return;
+        }
+
+        await messagesCollection.deleteOne({ _id: new ObjectId(ID_DA_MENSAGEM) });
+
+        res.status(200).send("Message deleted!");
+    } catch (error) {
+        res.status(500).send(error);
+    }
+});
+
 app.post("/status", async (req, res) => {
     const { headers } = req;
-    const sanitizedHeaders = {...headers, user: stripHtml(headers.user).result};
+    const sanitizedHeaders = { ...headers, user: stripHtml(headers.user).result };
 
     console.log("\nPost request to \"/status\" received:", headers, "\n");
     console.log("Sanitized headers request: ", sanitizedHeaders, "\n");
@@ -178,7 +211,7 @@ app.post("/status", async (req, res) => {
             }
         );
 
-        // code stops here. Find out why later.
+        // FIXME: code stops here. Find out why later.
 
         res.status(200).send(participantUpdated);
     } catch (error) {
