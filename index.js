@@ -145,9 +145,9 @@ app.get("/messages", async (req, res) => {
                 { from: sanitizedHeaders.user },
                 { to: { $in: [sanitizedHeaders.user, "Todos"] } }
             ]
-        }).limit(parseInt(limit)).sort({ time: -1 }).toArray();
+        }).limit(parseInt(limit)).sort({ time: 1 }).toArray();
 
-        res.status(200).send(messagesList.reverse());
+        res.status(200).send(messagesList);
     } catch (error) {
         res.status(500).send(error);
     }
